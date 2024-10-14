@@ -2,8 +2,6 @@ package com.example.bigdata;
 
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -44,25 +42,23 @@ public class AppRatingAggregator extends Configured implements Tool {
 
         public void map(LongWritable offset, Text lineText, Context context) {
             try {
-                if (offset.get() != 0) { // Skip header if exists
-                    String line = lineText.toString();
-                    String[] fields = line.split("\u0001");
+                String line = lineText.toString();
+                String[] fields = line.split("\u0001");
 
-                    String developerId = fields[14]; // developer_id
-                    String releaseDate = fields[12]; // Released
-                    String year = releaseDate.split("-")[0]; // Extract year
-                    String rating = fields[3]; // Rating
-                    String ratingCount = fields[4]; // Rating Count
+                String developerId = fields[14]; // developer_id
+                String releaseDate = fields[12]; // Released
+                String year = releaseDate.split("-")[0]; // Extract year
+                String rating = fields[3]; // Rating
+                String ratingCount = fields[4]; // Rating Count
 
-                    // Convert ratings and counts to numeric types
-                    double ratingValue = Double.parseDouble(rating);
-                    int countValue = Integer.parseInt(ratingCount);
+                // Convert ratings and counts to numeric types
+                double ratingValue = Double.parseDouble(rating);
+                int countValue = Integer.parseInt(ratingCount);
 
-                    if (countValue >= 1000) { // Filter out apps with < 1000 ratings
-                        outputKey.set(developerId + "-" + year);
-                        ratingInfo.set(ratingValue, countValue, 1); // sum, count, app count
-                        context.write(outputKey, ratingInfo);
-                    }
+                if (countValue >= 1000) { // Filter out apps with < 1000 ratings
+                    outputKey.set(developerId + "-" + year);
+                    ratingInfo.set(ratingValue, countValue); // sum, count, app count
+                    context.write(outputKey, ratingInfo);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -78,15 +74,13 @@ public class AppRatingAggregator extends Configured implements Tool {
         public void reduce(Text key, Iterable<RatingInfo> values, Context context) throws IOException, InterruptedException {
             double totalSum = 0.0;
             int totalCount = 0;
-            int appCount = 0;
 
             for (RatingInfo val : values) {
                 totalSum += val.getSum().get();
                 totalCount += val.getCount().get();
-                appCount += val.getAppCount().get();
             }
 
-            resultInfo.set(totalSum, totalCount, appCount);
+            resultInfo.set(totalSum, totalCount);
             context.write(key, resultInfo);
         }
     }
