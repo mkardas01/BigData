@@ -2,6 +2,8 @@ package com.example.bigdata;
 
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -13,8 +15,14 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 public class AppRatingAggregator extends Configured implements Tool {
+
+    private static final SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
 
     public static void main(String[] args) throws Exception {
         int res = ToolRunner.run(new AppRatingAggregator(), args);
@@ -27,61 +35,93 @@ public class AppRatingAggregator extends Configured implements Tool {
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
-        job.setMapperClass(AppRatingMapper.class);
-        job.setReducerClass(AppRatingReducer.class);
+        job.setMapperClass(AppMapper.class);
+        job.setCombinerClass(AppCombiner.class);
+        job.setReducerClass(AppReducer.class);
 
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(AppCount.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(RatingInfo.class);
+        job.setOutputValueClass(AppCount.class);
+
         return job.waitForCompletion(true) ? 0 : 1;
     }
 
-    public static class AppRatingMapper extends Mapper<LongWritable, Text, Text, RatingInfo> {
+    public static class AppMapper extends Mapper<LongWritable, Text, Text, AppCount> {
 
         private final Text outputKey = new Text();
-        private final RatingInfo ratingInfo = new RatingInfo();
+        private final AppCount appCount = new AppCount();
 
         public void map(LongWritable offset, Text lineText, Context context) {
             try {
-                String line = lineText.toString();
-                String[] fields = line.split("\u0001");
+                if (offset.get() != 0) {
+                    String line = lineText.toString();
+                    String[] fields = line.split("\u0001");
 
-                String developerId = fields[14]; // developer_id
-                String releaseDate = fields[12]; // Released
-                String year = releaseDate.split("-")[0]; // Extract year
-                String rating = fields[3]; // Rating
-                String ratingCount = fields[4]; // Rating Count
+                    String developerId = fields[14]; // developer_id
+                    String releaseDate = fields[12]; // Released
+                    String year = getYear(releaseDate);
+                    String rating = fields[3]; // Rating
+                    String ratingCount = fields[4]; // Rating Count
 
-                // Convert ratings and counts to numeric types
-                double ratingValue = Double.parseDouble(rating);
-                int countValue = Integer.parseInt(ratingCount);
+                    double ratingValue = Double.parseDouble(rating);
+                    int countValue = Integer.parseInt(ratingCount);
 
-                if (countValue >= 1000) { // Filter out apps with < 1000 ratings
-                    outputKey.set(developerId + "-" + year);
-                    ratingInfo.set(ratingValue, countValue); // sum, count, app count
-                    context.write(outputKey, ratingInfo);
+                    if (countValue >= 1000) {
+                        outputKey.set(developerId + "-" + year);
+                        appCount.set(new DoubleWritable(ratingValue), new IntWritable(countValue));
+                        context.write(outputKey, appCount);
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+
     }
 
-    public static class AppRatingReducer extends Reducer<Text, RatingInfo, Text, ResultInfo> {
+    public static class AppReducer extends Reducer<Text, AppCount, Text, AppCount> {
 
-        private final ResultInfo resultInfo = new ResultInfo();
+        private final AppCount appCount = new AppCount();
 
         @Override
-        public void reduce(Text key, Iterable<RatingInfo> values, Context context) throws IOException, InterruptedException {
+        public void reduce(Text key, Iterable<AppCount> values, Context context) throws IOException, InterruptedException {
             double totalSum = 0.0;
             int totalCount = 0;
+            int totalAppCount = 0;
 
-            for (RatingInfo val : values) {
-                totalSum += val.getSum().get();
-                totalCount += val.getCount().get();
+            for (AppCount val : values) {
+                totalSum += val.getRateSum().get();
+                totalCount += val.getRateCount().get();
+                totalAppCount += val.getAppNumberCount().get();
             }
 
-            resultInfo.set(totalSum, totalCount);
-            context.write(key, resultInfo);
+            appCount.set(new DoubleWritable(totalSum), new IntWritable(totalCount), new IntWritable(totalAppCount));
+            context.write(key, appCount);
         }
+
+    }
+
+    public static class AppCombiner extends Reducer<Text, AppCount, Text, AppCount> {
+
+        private final AppCount appCount = new AppCount();
+
+        @Override
+        public void reduce(Text key, Iterable<AppCount> values, Context context) throws IOException, InterruptedException {
+            appCount.set(new DoubleWritable(0.0d), new IntWritable(0));
+
+            for (AppCount val : values) {
+                appCount.addAppCount(val);
+            }
+            context.write(key, appCount);
+        }
+    }
+
+    private static String getYear(String releaseDate) throws ParseException {
+        Date date = formatter.parse(releaseDate);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        int year = calendar.get(Calendar.YEAR);
+        return String.valueOf(year);
     }
 }
