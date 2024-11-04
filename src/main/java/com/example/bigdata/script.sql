@@ -9,7 +9,7 @@ CREATE EXTERNAL TABLE IF NOT EXISTS data3 (
     ROW FORMAT DELIMITED
         FIELDS TERMINATED BY ';'
     STORED AS TEXTFILE
-    LOCATION ${input_dir3};
+    LOCATION '${hivevar:input_dir3}';
 
 
 -- Tabela tymczasowa dla input_dir4
@@ -22,10 +22,10 @@ CREATE EXTERNAL TABLE IF NOT EXISTS data4 (
     ROW FORMAT DELIMITED
         FIELDS TERMINATED BY '\u0001'
     STORED AS TEXTFILE
-    LOCATION ${input_dir4};
+    LOCATION '${hivevar:input_dir4}';
 
 
-INSERT OVERWRITE DIRECTORY ${output_dir6}
+INSERT OVERWRITE DIRECTORY '${hivevar:output_dir6}'
     ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.JsonSerDe'
 SELECT
     d4.developer_name AS developer_name,
