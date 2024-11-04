@@ -68,7 +68,7 @@ public class AppRatingAggregator extends Configured implements Tool {
                     int countValue = Integer.parseInt(ratingCount);
 
                     if (countValue >= 1000) {
-                        outputKey.set("{developerId=" + developerId + ", year=" + year + "}");
+                        outputKey.set(developerId + ";" + year + ";");
                         appCount.set(new DoubleWritable(ratingValue), new IntWritable(countValue));
                         context.write(outputKey, appCount);
                     }
