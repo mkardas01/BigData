@@ -56,10 +56,10 @@ public class AppRatingAggregator extends Configured implements Tool {
             try {
                 if (offset.get() != 0) {
                     String line = lineText.toString();
-                    String[] fields = line.split("\u0001");
+                    String[] fields = line.split("\\u0001");
 
-                    String developerId = fields[14]; // developer_id
-                    String releaseDate = fields[12]; // Released
+                    String developerId = fields[21]; // developer_id
+                    String releaseDate = fields[13]; // Released
                     String year = getYear(releaseDate);
                     String rating = fields[3]; // Rating
                     String ratingCount = fields[4]; // Rating Count
@@ -68,7 +68,7 @@ public class AppRatingAggregator extends Configured implements Tool {
                     int countValue = Integer.parseInt(ratingCount);
 
                     if (countValue >= 1000) {
-                        outputKey.set(developerId + "-" + year);
+                        outputKey.set("{developerId=" + developerId + ", year=" + year + "}");
                         appCount.set(new DoubleWritable(ratingValue), new IntWritable(countValue));
                         context.write(outputKey, appCount);
                     }
@@ -97,6 +97,7 @@ public class AppRatingAggregator extends Configured implements Tool {
             }
 
             appCount.set(new DoubleWritable(totalSum), new IntWritable(totalCount), new IntWritable(totalAppCount));
+
             context.write(key, appCount);
         }
 
@@ -108,7 +109,7 @@ public class AppRatingAggregator extends Configured implements Tool {
 
         @Override
         public void reduce(Text key, Iterable<AppCount> values, Context context) throws IOException, InterruptedException {
-            appCount.set(new DoubleWritable(0.0d), new IntWritable(0));
+            appCount.set(new DoubleWritable(0.0d), new IntWritable(0), new IntWritable(0));
 
             for (AppCount val : values) {
                 appCount.addAppCount(val);

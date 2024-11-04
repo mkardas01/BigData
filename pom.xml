@@ -39,7 +39,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>com.example.bigdata.AvgSizeStations</mainClass>
+                            <mainClass>com.example.bigdata.AppRatingAggregator</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
