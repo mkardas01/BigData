@@ -25,19 +25,46 @@ CREATE EXTERNAL TABLE IF NOT EXISTS data4 (
     LOCATION '${hivevar:input_dir4}';
 
 
+-- INSERT OVERWRITE DIRECTORY '${hivevar:output_dir6}'
+--     ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.JsonSerDe'
+-- SELECT
+--     d4.developer_name AS developer_name,
+--     d3.release_year AS year,
+--     d3.total_rating_sum / d3.total_app_count AS avg_rate,
+--     d3.total_app_count AS count_apps,
+--     d3.total_rating_count AS count_rates
+-- FROM
+--     data3 d3
+--         JOIN
+--     data4 d4
+--     ON
+--         d3.developer_id = d4.developer_id
+-- ORDER BY avg_rate DESC
+-- LIMIT 3;
 INSERT OVERWRITE DIRECTORY '${hivevar:output_dir6}'
     ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.JsonSerDe'
 SELECT
-    d4.developer_name AS developer_name,
-    d3.release_year AS year,
-    d3.total_rating_sum / d3.total_app_count AS avg_rate,
-    d3.total_app_count AS count_apps,
-    d3.total_rating_count AS count_rates
-FROM
-    data3 d3
-        JOIN
-    data4 d4
-    ON
-        d3.developer_id = d4.developer_id
-ORDER BY avg_rate DESC
-LIMIT 3;
+    collect_list(
+            named_struct(
+                    'developer_name', developer_name,
+                    'year', year,
+                    'avg_rate', avg_rate,
+                    'count_apps', count_apps,
+                    'count_rates', count_rates
+            )
+    ) AS result
+FROM (
+         SELECT
+             d4.developer_name,
+             d3.release_year AS year,
+             d3.total_rating_sum / d3.total_app_count AS avg_rate,
+             d3.total_app_count AS count_apps,
+             d3.total_rating_count AS count_rates
+         FROM
+             data3 d3
+                 JOIN data4 d4 ON d3.developer_id = d4.developer_id
+         ORDER BY avg_rate DESC, count_rates DESC, count_apps DESC
+         LIMIT 3
+     ) AS subquery;
+
+
