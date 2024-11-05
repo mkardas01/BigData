@@ -6,7 +6,7 @@ CREATE EXTERNAL TABLE IF NOT EXISTS data3 (
     total_app_count INT
 )
     ROW FORMAT DELIMITED
-        FIELDS TERMINATED BY ';'
+        FIELDS TERMINATED BY '\t'
     STORED AS TEXTFILE
     LOCATION '${hivevar:input_dir3}';
 

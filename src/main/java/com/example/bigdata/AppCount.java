@@ -97,7 +97,7 @@ public class AppCount implements WritableComparable<AppCount> {
 
     @Override
     public String toString() {
-        return rateSum + ";" + rateCount + ";" + appNumberCount;
+        return rateSum + "\t" + rateCount + "\t" + appNumberCount;
     }
 
 }
