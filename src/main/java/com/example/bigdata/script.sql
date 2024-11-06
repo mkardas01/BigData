@@ -22,7 +22,7 @@ CREATE EXTERNAL TABLE IF NOT EXISTS data4 (
     STORED AS TEXTFILE
     LOCATION '${hivevar:input_dir4}';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS developer_summary (
+CREATE TABLE IF NOT EXISTS developer_summary (
     year INT,
     developer_name STRING,
     avg_rate DOUBLE,
